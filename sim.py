@@ -30,21 +30,6 @@ class Position:
     y: int
 
 
-# def is_prey(self, world: World) -> bool:
-# return world.grid[self.x][self.y] == AnimalType.PREY
-
-# def is_predator(self, world: World) -> bool:
-# return world.grid[self.x][self.y] == AnimalType.PREDATOR
-
-# def get_animal_type(self, world: World) -> AnimalType:
-# for type_ in AnimalType:
-# if world.grid[self.x][self.y] == type_:
-# return type_
-# raise ValueError(
-# "Unknown animal type found: %s" % world.grid[self.x][self.y]
-# )
-
-
 @dataclass
 class Animal:
     """Base animal class."""
@@ -126,9 +111,7 @@ def get_closest_prey(animal: Animal) -> Optional[Animal]:
 
 def get_closest_predator(animal: Animal) -> Optional[Animal]:
     """Get closest predator in sight."""
-    closest_predators = [
-        a for a in animal.nearest_animals if isinstance(a, Predator)
-    ]
+    closest_predators = [a for a in animal.nearest_animals if isinstance(a, Predator)]
     if closest_predators:
         return closest_predators[0]
     return None
@@ -226,10 +209,6 @@ class World:
             elif animal.type_ == AnimalType.PREDATOR:
                 move_predator(animal, self)
         self.update()
-
-
-# def is_free(x: int, y: int, world: World) -> bool:
-    # return world.grid[x][y] == AnimalType.NONE.value
 
 
 def move_random(animal: Animal, world: World) -> Position:
@@ -397,9 +376,7 @@ def animate_world(
         image.set_array(world.grid)
 
     frames = max_iterations
-    animation = FuncAnimation(
-        fig, update, frames=frames, interval=50, repeat=False
-    )
+    animation = FuncAnimation(fig, update, frames=frames, interval=50, repeat=False)
     if filepath:
         animation.save(filepath)
     else:
