@@ -217,18 +217,29 @@ class World:
 def move_random(animal: Animal, world: World) -> Position:
     """Move to a random direction."""
     print(f"{animal.type_.name} at {(animal.x, animal.y)} moves randomly")
-    possible_directions = [
+    all_directions = (
         (animal.x - 1, animal.y),
         (animal.x + 1, animal.y),
         (animal.x, animal.y - 1),
         (animal.x, animal.y + 1),
         (animal.x, animal.y),  # do not move
+    )
+    possible_directions = [
+        (x, y)
+        for (x, y) in all_directions
+        if in_grid(x, y) and world.is_free(x, y)
     ]
+    if not possible_directions:
+        return Position(animal.x, animal.y)
     random.shuffle(possible_directions)
     for (x, y) in possible_directions:
         if check_position(x, y):
             return Position(x, y)
     raise RuntimeError("Couldn't find valid random move for %s" % animal)
+
+
+def in_grid(x: int, y: int) -> bool:
+    return 0 <= x < SIDE and 0 <= y < SIDE
 
 
 def closest_to_border(x: int, y: int) -> Tuple[int, int]:
