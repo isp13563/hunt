@@ -1,13 +1,13 @@
 """Hunter/prey simulation."""
-import math
 import enum
+import math
 import random
-from typing import Dict, List, Tuple, Optional, Iterable
 from dataclasses import dataclass, field
-import numpy
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+from typing import Dict, Iterable, List, Optional, Tuple
 
+import matplotlib.pyplot as plt
+import numpy
+from matplotlib.animation import FuncAnimation
 
 SIDE: int = 40
 MIN_SIDE = 3
@@ -111,7 +111,9 @@ def get_closest_prey(animal: Animal) -> Optional[Animal]:
 
 def get_closest_predator(animal: Animal) -> Optional[Animal]:
     """Get closest predator in sight."""
-    closest_predators = [a for a in animal.nearest_animals if isinstance(a, Predator)]
+    closest_predators = [
+        a for a in animal.nearest_animals if isinstance(a, Predator)
+    ]
     if closest_predators:
         return closest_predators[0]
     return None
@@ -378,7 +380,9 @@ def animate_world(
         image.set_array(world.grid)
 
     frames = max_iterations
-    animation = FuncAnimation(fig, update, frames=frames, interval=50, repeat=False)
+    animation = FuncAnimation(
+        fig, update, frames=frames, interval=50, repeat=False
+    )
     if filepath:
         animation.save(filepath)
     else:
