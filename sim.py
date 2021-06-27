@@ -292,7 +292,7 @@ def move_further(animal: Animal, target: Animal, world: World) -> Position:
 
 
 def move_prey(prey: Prey, world: World) -> None:
-    """Prey move strategy."""
+    """Prey strategy."""
     closest_predator = get_closest_predator(prey)
     closest_prey = get_closest_prey(prey)
 
@@ -322,7 +322,6 @@ def move_predator(predator: Predator, world: World) -> None:
         new_position = move_closer(predator, closest_prey, world)
         world.move(predator, new_position)
     else:  # kill adjacent prey
-        print(distance(predator, closest_prey))
         world.kill(closest_prey)
         return None
 
@@ -342,7 +341,7 @@ def test_preys():
     assert get_closest_prey(first_prey) == another_prey
     assert get_closest_prey(another_prey) == first_prey
 
-    # Add prey far is far away
+    # Add prey far away
     far_away_prey = Prey(Position(SIDE - 1, SIDE - 1))
     world.spawn(far_away_prey)
     assert get_closest_prey(first_prey) == another_prey
