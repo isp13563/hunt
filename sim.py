@@ -401,7 +401,7 @@ def run():
         "--grid-size", type=int, default=50, help="Size of the square grid"
     )
     parser.add_argument(
-        "--iterations", type=int, default=250, help="Number of simulation iterations"
+        "--iterations", type=int, default=300, help="Number of simulation iterations"
     )
     args = parser.parse_args()
     config = Config(
