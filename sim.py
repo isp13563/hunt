@@ -1,19 +1,16 @@
-"""Hunter/prey simulation."""
+#!/usr/bin/env python3
+"""Predator/prey simulation."""
+import argparse
 import enum
 import math
 import random
+from abc import ABC
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy
 from matplotlib.animation import FuncAnimation
-
-SIDE: int = 40
-MIN_SIDE = 3
-PREY_SIGHT = 10
-PREDATOR_SIGHT = 30
-assert 0 <= MIN_SIDE <= PREY_SIGHT <= PREDATOR_SIGHT <= SIDE
 
 
 class AnimalType(enum.IntEnum):
@@ -31,16 +28,13 @@ class Position:
 
 
 @dataclass
-class Animal:
+class Animal(ABC):
     """Base animal class."""
 
     pos: Position
     sight: int
     type_ = AnimalType.NONE
     nearest_animals: List["Animal"] = field(default_factory=list)
-
-    def __post_init__(self) -> None:
-        raise TypeError("Animal class should not be instantiated")
 
     @property
     def x(self) -> int:
@@ -70,35 +64,20 @@ def distance(animal1: Animal, animal2: Animal) -> float:
     )
 
 
-def check_position(x: int, y: int) -> bool:
-    if x < 0 or x >= SIDE:
-        return False
-    elif y < 0 or y >= SIDE:
-        return False
-    else:
-        return True
-
-
 @dataclass
 class Prey(Animal):
     """Prey class."""
 
-    sight: int = PREY_SIGHT
+    sight: int
     type_ = AnimalType.PREY
-
-    def __post_init__(self) -> None:
-        assert MIN_SIDE < self.sight < SIDE, self.sight
 
 
 @dataclass
 class Predator(Animal):
     """Predator class."""
 
-    sight: int = PREDATOR_SIGHT
+    sight: int
     type_ = AnimalType.PREDATOR
-
-    def __post_init__(self) -> None:
-        assert MIN_SIDE < self.sight < SIDE
 
 
 def get_closest_prey(animal: Animal) -> Optional[Animal]:
@@ -111,9 +90,7 @@ def get_closest_prey(animal: Animal) -> Optional[Animal]:
 
 def get_closest_predator(animal: Animal) -> Optional[Animal]:
     """Get closest predator in sight."""
-    closest_predators = [
-        a for a in animal.nearest_animals if isinstance(a, Predator)
-    ]
+    closest_predators = [a for a in animal.nearest_animals if isinstance(a, Predator)]
     if closest_predators:
         return closest_predators[0]
     return None
@@ -123,16 +100,17 @@ def get_closest_predator(animal: Animal) -> Optional[Animal]:
 class World:
     """World class that uses numpy array to store animals."""
 
-    shape: Tuple[int, int] = (SIDE, SIDE)
+    side: int
+    prey_sight: int
+    predator_sight: int
     grid: numpy.ndarray = field(init=False)
-
     animals: Dict[Position, Animal] = field(default_factory=dict, init=False)
 
     def get_preys(self) -> List[Prey]:
         return [a for a in self.animals if isinstance(a, Prey)]
 
     def __post_init__(self) -> None:
-        self.grid = numpy.zeros(self.shape)
+        self.grid = numpy.zeros((self.side, self.side))
 
     def is_free(self, x, y) -> bool:
         return self.grid[x][y] == AnimalType.NONE.value
@@ -147,16 +125,19 @@ class World:
     def spawn_random(self, type_: AnimalType, update: bool = True) -> None:
         if type_ == AnimalType.NONE:
             raise RuntimeError("Can random spawn either prey or predator")
-        available_slots = SIDE * SIDE - len(self.animals)
+        available_slots = self.side * self.side - len(self.animals)
         animal: Animal
         while available_slots:
-            rand_x = random.randint(0, SIDE - 1)
-            rand_y = random.randint(0, SIDE - 1)
+            rand_x = random.randint(0, self.side - 1)
+            rand_y = random.randint(0, self.side - 1)
             if not self.is_free(rand_x, rand_y):
                 continue
             pos = Position(rand_x, rand_y)
-            animal_cls = Prey if type_ == AnimalType.PREY else Predator
-            self.spawn(animal_cls(pos))
+            self.spawn(
+                Prey(pos, self.prey_sight)
+                if type_ == AnimalType.PREY
+                else Predator(pos, self.predator_sight)
+            )
             if update:
                 self.update()
             return None
@@ -165,7 +146,7 @@ class World:
         self, location: Optional[Tuple[int, int]] = None, update: bool = True
     ):
         if location is not None:
-            self.spawn(Prey(Position(*location)), update=update)
+            self.spawn(Prey(Position(*location), self.prey_sight), update=update)
         else:
             self.spawn_random(AnimalType.PREY, update=update)
 
@@ -173,7 +154,9 @@ class World:
         self, location: Optional[Tuple[int, int]] = None, update: bool = True
     ):
         if location is not None:
-            self.spawn(Predator(Position(*location)), update=update)
+            self.spawn(
+                Predator(Position(*location), self.predator_sight), update=update
+            )
         else:
             self.spawn_random(AnimalType.PREDATOR, update=update)
 
@@ -227,32 +210,29 @@ def move_random(animal: Animal, world: World) -> Position:
     possible_directions = [
         (x, y)
         for (x, y) in all_directions
-        if in_grid(x, y) and world.is_free(x, y)
+        if in_grid(x, y, world) and world.is_free(x, y)
     ]
     if not possible_directions:
         return Position(animal.x, animal.y)
-    random.shuffle(possible_directions)
-    for (x, y) in possible_directions:
-        if check_position(x, y):
-            return Position(x, y)
-    raise RuntimeError("Couldn't find valid random move for %s" % animal)
+    else:
+        return Position(*random.choice(possible_directions))
 
 
-def in_grid(x: int, y: int) -> bool:
-    return 0 <= x < SIDE and 0 <= y < SIDE
+def in_grid(x: int, y: int, world: World) -> bool:
+    return 0 <= x < world.side and 0 <= y < world.side
 
 
-def closest_to_border(x: int, y: int) -> Tuple[int, int]:
+def closest_to_border(x: int, y: int, world: World) -> Tuple[int, int]:
     """Find closest to border point."""
     new_x = x
     new_y = y
-    if x >= SIDE:
-        new_x = SIDE - 1
+    if x >= world.side:
+        new_x = world.side - 1
     elif x < 0:
         new_x = 0
 
-    if y >= SIDE:
-        new_y = SIDE - 1
+    if y >= world.side:
+        new_y = world.side - 1
     elif y < 0:
         new_y = 0
     return (new_x, new_y)
@@ -276,7 +256,7 @@ def move_closer(animal: Animal, target: Animal, world: World) -> Position:
         elif dx < 0:
             new_x -= 1
 
-    new_x, new_y = closest_to_border(new_x, new_y)
+    new_x, new_y = closest_to_border(new_x, new_y, world)
     return Position(new_x, new_y)
 
 
@@ -298,7 +278,7 @@ def move_further(animal: Animal, target: Animal, world: World) -> Position:
         elif dx < 0:
             new_x += 1
 
-    new_x, new_y = closest_to_border(new_x, new_y)
+    new_x, new_y = closest_to_border(new_x, new_y, world)
     return Position(new_x, new_y)
 
 
@@ -337,23 +317,23 @@ def move_predator(predator: Predator, world: World) -> None:
         return None
 
 
-def test_preys():
-    world = World()
+def test_preys(side=50, prey_sight=10, predator_sight=30):
+    world = World(side=side, prey_sight=prey_sight, predator_sight=predator_sight)
     assert world.animals == {}
 
     # Add first animal
-    first_prey = Prey(Position(0, 0))
+    first_prey = Prey(Position(0, 0), prey_sight)
     world.spawn(first_prey)
     assert get_closest_prey(first_prey) is None
 
     # Add second animal within sight
-    another_prey = Prey(Position(2, 2))
+    another_prey = Prey(Position(2, 2), prey_sight)
     world.spawn(another_prey)
     assert get_closest_prey(first_prey) == another_prey
     assert get_closest_prey(another_prey) == first_prey
 
     # Add prey far away
-    far_away_prey = Prey(Position(SIDE - 1, SIDE - 1))
+    far_away_prey = Prey(Position(world.side - 1, world.side - 1), prey_sight)
     world.spawn(far_away_prey)
     assert get_closest_prey(first_prey) == another_prey
     assert get_closest_prey(another_prey) == first_prey
@@ -367,11 +347,25 @@ def test_preys():
     assert world.animals == {}
 
 
-def generate_random_world(num_preys=10, num_predators=1) -> World:
-    world = World()
-    for _ in range(num_preys):
+@dataclass
+class Config:
+    num_preys: int
+    num_predators: int
+    square_side: int
+    prey_sight: int
+    predator_sight: int
+    max_iterations: int
+
+
+def generate_random_world(config: Config) -> World:
+    world = World(
+        side=config.square_side,
+        prey_sight=config.prey_sight,
+        predator_sight=config.predator_sight,
+    )
+    for _ in range(config.num_preys):
         world.spawn_prey()
-    for _ in range(num_predators):
+    for _ in range(config.num_predators):
         world.spawn_predator()
     return world
 
@@ -382,7 +376,7 @@ def animate_world(
     if max_iterations < 1:
         print("max_iterations must be >= 1")
         return
-    fig = plt.figure(figsize=(SIDE, SIDE))
+    fig = plt.figure(figsize=(world.side, world.side))
     image = plt.imshow(world.grid)
 
     def update(_):
@@ -390,16 +384,40 @@ def animate_world(
         image.set_array(world.grid)
 
     frames = max_iterations
-    animation = FuncAnimation(
-        fig, update, frames=frames, interval=50, repeat=False
-    )
+    animation = FuncAnimation(fig, update, frames=frames, interval=50, repeat=False)
     if filepath:
         animation.save(filepath)
     else:
         plt.show()
 
 
-test_preys()
-world = generate_random_world(num_preys=70, num_predators=10)
-animate_world(world, max_iterations=250)
+def run():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--preys", type=int, default=70, help="Number of preys")
+    parser.add_argument("--predators", type=int, default=10, help="Number of predators")
+    parser.add_argument("--prey-sight", type=int, default=10, help="Prey sight")
+    parser.add_argument("--predator-sight", type=int, default=30, help="Predator sight")
+    parser.add_argument(
+        "--grid-size", type=int, default=50, help="Size of the square grid"
+    )
+    parser.add_argument(
+        "--iterations", type=int, default=250, help="Number of simulation iterations"
+    )
+    args = parser.parse_args()
+    config = Config(
+        num_preys=args.preys,
+        num_predators=args.predators,
+        square_side=args.grid_size,
+        prey_sight=args.prey_sight,
+        predator_sight=args.predator_sight,
+        max_iterations=args.iterations,
+    )
+    world = generate_random_world(config)
+    animate_world(world, config.max_iterations)
+
+
+if __name__ == "__main__":
+    test_preys()
+    run()
+
 # animate_world(world, max_iterations=10, filepath="/tmp/animation.gif")
