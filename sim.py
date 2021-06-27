@@ -206,7 +206,8 @@ class World:
         for animal in list(self.animals.values()):
             if animal.type_ == AnimalType.PREY:
                 move_prey(animal, self)
-            elif animal.type_ == AnimalType.PREDATOR:
+        for animal in list(self.animals.values()):
+            if animal.type_ == AnimalType.PREDATOR:
                 move_predator(animal, self)
         self.update()
 
@@ -319,6 +320,7 @@ def move_predator(predator: Predator, world: World) -> None:
         new_position = move_closer(predator, closest_prey, world)
         world.move(predator, new_position)
     else:  # kill adjacent prey
+        print(distance(predator, closest_prey))
         world.kill(closest_prey)
         return None
 
@@ -384,6 +386,6 @@ def animate_world(
 
 
 test_preys()
-world = generate_random_world(num_preys=80, num_predators=10)
-animate_world(world, max_iterations=200)
+world = generate_random_world(num_preys=70, num_predators=10)
+animate_world(world, max_iterations=250)
 # animate_world(world, max_iterations=10, filepath="/tmp/animation.gif")
